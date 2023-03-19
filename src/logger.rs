@@ -1,3 +1,4 @@
+use anyhow::Result;
 use colored::Colorize;
 use std::{
     fmt,
@@ -22,7 +23,7 @@ impl TimeUnit {
             TimeUnit::Nanoseconds => TimeUnit::Microseconds,
             TimeUnit::Microseconds => TimeUnit::Milliseconds,
             TimeUnit::Milliseconds => TimeUnit::Seconds,
-            _ => panic!("bad"),
+            _ => unreachable!(),
         }
     }
     pub fn repr(&self) -> &str {
@@ -54,12 +55,12 @@ fn display_duration(duration: Duration) -> (u128, TimeUnit) {
 }
 
 impl Logger {
-    pub fn info<T: fmt::Display>(text: T) -> Logger {
+    pub fn info<T: fmt::Display>(text: T) -> Result<Logger> {
         print!("{} {}", " INFO ".yellow(), text,);
-        io::stdout().flush().unwrap();
-        Logger {
+        io::stdout().flush()?;
+        Ok(Logger {
             start: Instant::now(),
-        }
+        })
     }
     pub fn end(self) {
         let elapsed = self.start.elapsed();
