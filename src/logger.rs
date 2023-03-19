@@ -18,20 +18,20 @@ pub enum TimeUnit {
 }
 
 impl TimeUnit {
-    pub fn next(&self) -> TimeUnit {
+    pub fn next(&self) -> Self {
         match self {
-            TimeUnit::Nanoseconds => TimeUnit::Microseconds,
-            TimeUnit::Microseconds => TimeUnit::Milliseconds,
-            TimeUnit::Milliseconds => TimeUnit::Seconds,
-            _ => unreachable!(),
+            Self::Nanoseconds => Self::Microseconds,
+            Self::Microseconds => Self::Milliseconds,
+            Self::Milliseconds => Self::Seconds,
+            Self::Seconds => unreachable!(),
         }
     }
-    pub fn repr(&self) -> &str {
+    pub const fn repr(&self) -> &str {
         match self {
-            TimeUnit::Nanoseconds => "ns",
-            TimeUnit::Microseconds => "μs",
-            TimeUnit::Milliseconds => "ms",
-            TimeUnit::Seconds => "s",
+            Self::Nanoseconds => "ns",
+            Self::Microseconds => "μs",
+            Self::Milliseconds => "ms",
+            Self::Seconds => "s",
         }
     }
 }
@@ -55,10 +55,10 @@ fn display_duration(duration: Duration) -> (u128, TimeUnit) {
 }
 
 impl Logger {
-    pub fn info<T: fmt::Display>(text: T) -> Result<Logger> {
+    pub fn info<T: fmt::Display>(text: T) -> Result<Self> {
         print!("{} {}", " INFO ".yellow(), text,);
         io::stdout().flush()?;
-        Ok(Logger {
+        Ok(Self {
             start: Instant::now(),
         })
     }

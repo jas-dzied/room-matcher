@@ -3,12 +3,12 @@ use colored::Colorize;
 use rand::{rngs::ThreadRng, seq::SliceRandom};
 use std::env;
 use std::path::Path;
-use std::time::Instant;
 use std::{collections::HashMap, fs};
 use toml::Table;
 
 mod logger;
-use logger::TimeUnit;
+
+type Constraints = HashMap<String, (Vec<String>, Vec<String>)>;
 
 const DEFAULT_CONFIG_PATH: &str = "config.toml";
 
@@ -20,36 +20,12 @@ struct Solution {
     unpreferred: usize,
 }
 
-fn error<T: std::fmt::Display>(message: T, start: Instant) {
-    let mut time_since_start = start.elapsed().as_nanos();
-    let mut unit = TimeUnit::Nanoseconds;
-    if time_since_start > 5000 {
-        time_since_start /= 1000;
-        unit = unit.next();
-    }
-    if time_since_start > 5000 {
-        time_since_start /= 1000;
-        unit = unit.next();
-    }
-    if time_since_start > 5000 {
-        time_since_start /= 1000;
-        unit = unit.next();
-    }
-    println!(
-        "{} {} {}{}",
-        " ERROR".red(),
-        message,
-        time_since_start.to_string().truecolor(150, 150, 150),
-        unit.repr().truecolor(150, 150, 150)
-    )
-}
-
 fn solve_constraints(
     people: Vec<String>,
-    constraints: HashMap<String, (Vec<String>, Vec<String>)>,
+    constraints: &Constraints,
     rng: &mut ThreadRng,
 ) -> Result<Solution> {
-    let mut remaining_people = people.clone();
+    let mut remaining_people = people;
     remaining_people.shuffle(rng);
 
     let mut result = vec![];
@@ -71,7 +47,7 @@ fn solve_constraints(
             .iter()
             .filter(|x| remaining_people.contains(x))
             .filter(|x| constraints.get(*x).unwrap().0.contains(&person))
-            .map(|x| x.clone())
+            .cloned()
             .collect::<Vec<_>>();
 
         let unpreferred_people = &constraints
@@ -82,7 +58,7 @@ fn solve_constraints(
             .iter()
             .filter(|x| !unpreferred_people.contains(x))
             .filter(|x| !constraints.get(*x).unwrap().1.contains(&person))
-            .map(|x| x.clone())
+            .cloned()
             .collect::<Vec<_>>();
 
         if !options.is_empty() {
@@ -129,13 +105,7 @@ fn solve_constraints(
     })
 }
 
-fn load_config_file(
-    path: &str,
-) -> Result<(
-    i64,
-    Vec<String>,
-    HashMap<String, (Vec<String>, Vec<String>)>,
-)> {
+fn load_config_file(path: &str) -> Result<(i64, Vec<String>, Constraints)> {
     let log = logger::Logger::info(&format!(
         "{} {}",
         "Loading config file from".truecolor(100, 100, 100),
@@ -192,8 +162,8 @@ fn load_config_file(
 
 fn find_solutions(
     num_solutions: i64,
-    people: Vec<String>,
-    constraints: HashMap<String, (Vec<String>, Vec<String>)>,
+    people: &[String],
+    constraints: &Constraints,
     rng: &mut ThreadRng,
 ) -> Result<Vec<Solution>> {
     let log = logger::Logger::info(&format!(
@@ -204,7 +174,11 @@ fn find_solutions(
     ))?;
     let mut solutions = vec![];
     for _ in 0..num_solutions {
-        solutions.push(solve_constraints(people.clone(), constraints.clone(), rng)?)
+        solutions.push(solve_constraints(
+            people.to_owned(),
+            &constraints.clone(),
+            rng,
+        )?);
     }
     log.end();
     Ok(solutions)
@@ -221,7 +195,7 @@ fn main() -> Result<()> {
     let mut rng = rand::thread_rng();
     log.end();
 
-    let solutions = find_solutions(num_solutions, people, constraints, &mut rng)?;
+    let solutions = find_solutions(num_solutions, &people, &constraints, &mut rng)?;
 
     let log = logger::Logger::info("Finding optimal solutions".truecolor(100, 100, 100))?;
     let best_preferred = solutions
@@ -260,28 +234,25 @@ fn main() -> Result<()> {
     log.end();
 
     println!(
-        "{} {}   {}",
+        "{} preferred matchups:   {}",
         "RESULT".green(),
-        "preferred matchups:",
         solution.preferred.to_string().blue()
     );
     println!(
-        "       {}    {}",
-        "accepted matchups:",
+        "       accepted matchups:    {}",
         solution.accepted.to_string().blue()
     );
     println!(
-        "       {} {}",
-        "unpreferred matchups:",
+        "       unpreferred matchups: {}",
         solution.unpreferred.to_string().blue()
     );
     for (i, room) in solution.result.iter().enumerate() {
         println!(
             "       ROOM {}: {} & {}",
-            (i + 1).to_string(),
+            (i + 1),
             room.0.to_string().blue(),
             room.1.to_string().blue()
-        )
+        );
     }
 
     Ok(())

@@ -2,8 +2,11 @@
 name = "room-matcher"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "A program to match people in rooms of 2"
+license = "MIT"
+repository = "https://github.com/jas-dzied/room-matcher"
+keywords = ["binary"]
+categories = ["utilities"]
 
 [dependencies]
 anyhow = "1.0.70"
