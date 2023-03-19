@@ -6,14 +6,10 @@ use std::time::Instant;
 use std::{collections::HashMap, fs};
 use toml::Table;
 
-const DEFAULT_CONFIG_PATH: &str = "config.toml";
+mod logger;
+use logger::TimeUnit;
 
-enum TimeUnit {
-    Nanoseconds,
-    Microseconds,
-    Milliseconds,
-    Seconds,
-}
+const DEFAULT_CONFIG_PATH: &str = "config.toml";
 
 #[derive(Debug)]
 struct Solution {
@@ -21,49 +17,6 @@ struct Solution {
     preferred: usize,
     accepted: usize,
     unpreferred: usize,
-}
-
-impl TimeUnit {
-    fn next(&self) -> TimeUnit {
-        match self {
-            TimeUnit::Nanoseconds => TimeUnit::Microseconds,
-            TimeUnit::Microseconds => TimeUnit::Milliseconds,
-            TimeUnit::Milliseconds => TimeUnit::Seconds,
-            _ => panic!("bad"),
-        }
-    }
-    fn repr(&self) -> &str {
-        match self {
-            TimeUnit::Nanoseconds => "ns",
-            TimeUnit::Microseconds => "μs",
-            TimeUnit::Milliseconds => "ms",
-            TimeUnit::Seconds => "s",
-        }
-    }
-}
-
-fn info<T: std::fmt::Display>(message: T, start: Instant) {
-    let mut time_since_start = start.elapsed().as_nanos();
-    let mut unit = TimeUnit::Nanoseconds;
-    if time_since_start > 5000 {
-        time_since_start /= 1000;
-        unit = unit.next();
-    }
-    if time_since_start > 5000 {
-        time_since_start /= 1000;
-        unit = unit.next();
-    }
-    if time_since_start > 5000 {
-        time_since_start /= 1000;
-        unit = unit.next();
-    }
-    println!(
-        "{} {} {}{}",
-        " INFO ".yellow(),
-        message,
-        time_since_start.to_string().truecolor(150, 150, 150),
-        unit.repr().truecolor(150, 150, 150)
-    )
 }
 
 fn error<T: std::fmt::Display>(message: T, start: Instant) {
@@ -136,13 +89,6 @@ fn solve_constraints(
             remaining_people.remove(index);
             num_accepted += 1;
         } else {
-            if remaining_people.is_empty() {
-                error(
-                    "Not enough people to fill rooms. Maybe you forgot to add a person?",
-                    start,
-                );
-                panic!("Exiting program");
-            }
             let choice = remaining_people.choose(rng).unwrap();
             let index = remaining_people.iter().position(|x| x == choice).unwrap();
             result.push((person, choice.clone()));
@@ -168,18 +114,12 @@ fn main() {
 
     let config_full_path = Path::new(&config_path);
 
-    info(
-        &format!(
-            "{} {}",
-            "Loading config file from".truecolor(100, 100, 100),
-            config_full_path.canonicalize().unwrap().display()
-        ),
-        start,
-    );
-    let text = fs::read_to_string(config_path).unwrap_or_else(|_| {
-        error("Failed to find config file", start);
-        panic!("Exiting program");
-    });
+    let log = logger::Logger::info(&format!(
+        "{} {}",
+        "Loading config file from".truecolor(100, 100, 100),
+        config_full_path.canonicalize().unwrap().display()
+    ));
+    let text = fs::read_to_string(config_path).unwrap();
     let value = text.parse::<Table>().unwrap();
 
     let config = value["config"].as_table().unwrap();
@@ -187,8 +127,9 @@ fn main() {
 
     let mut people = vec![];
     let mut constraints = HashMap::new();
+    log.end();
 
-    info("Parsing constraints".truecolor(100, 100, 100), start);
+    let log = logger::Logger::info("Parsing constraints".truecolor(100, 100, 100));
     for key in value.keys() {
         if key.as_str() != "config" {
             people.push(key.clone());
@@ -208,18 +149,18 @@ fn main() {
             constraints.insert(key.clone(), (preferred, unpreferred));
         }
     }
+    log.end();
 
-    info("Initialising rng".truecolor(100, 100, 100), start);
+    let log = logger::Logger::info("Initialising rng".truecolor(100, 100, 100));
     let mut rng = rand::thread_rng();
-    info(
-        &format!(
-            "{} {} {}",
-            "Generating".truecolor(100, 100, 100),
-            num_solutions.to_string().truecolor(55, 80, 140),
-            "solutions".truecolor(100, 100, 100),
-        ),
-        start,
-    );
+    log.end();
+
+    let log = logger::Logger::info(&format!(
+        "{} {} {}",
+        "Generating".truecolor(100, 100, 100),
+        num_solutions.to_string().truecolor(55, 80, 140),
+        "solutions".truecolor(100, 100, 100),
+    ));
     let solutions = (0..num_solutions)
         .map(|_| solve_constraints(people.clone(), constraints.clone(), &mut rng, start))
         .collect::<Vec<_>>();
@@ -235,19 +176,20 @@ fn main() {
         .iter()
         .filter(|x| x.accepted == best_accepted)
         .collect::<Vec<_>>();
+    log.end();
 
-    info(
-        &format!(
-            "{} {} {}",
-            "Found".truecolor(100, 100, 100),
-            best_solutions.len().to_string().truecolor(55, 80, 140),
-            "optimal solutions".truecolor(100, 100, 100),
-        ),
-        start,
-    );
+    let log = logger::Logger::info(&format!(
+        "{} {} {}",
+        "Found".truecolor(100, 100, 100),
+        best_solutions.len().to_string().truecolor(55, 80, 140),
+        "optimal solutions".truecolor(100, 100, 100),
+    ));
+    log.end();
 
-    info("Selecting solution".truecolor(100, 100, 100), start);
+    let log = logger::Logger::info("Selecting solution".truecolor(100, 100, 100));
     let solution = best_solutions.choose(&mut rng).unwrap();
+    log.end();
+
     println!(
         "{} {}   {}",
         "RESULT".green(),
